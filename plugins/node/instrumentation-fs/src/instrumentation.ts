@@ -39,7 +39,6 @@ import { promisify } from 'util';
 import { indexFs } from './utils';
 
 type FS = typeof fs;
-type FSPromises = (typeof fs)['promises'];
 
 /**
  * This is important for 2-level functions like `realpath.native` to retain the 2nd-level
@@ -56,10 +55,7 @@ export default class FsInstrumentation extends InstrumentationBase<FS> {
     super('@opentelemetry/instrumentation-fs', VERSION, config);
   }
 
-  init(): (
-    | InstrumentationNodeModuleDefinition<FS>
-    | InstrumentationNodeModuleDefinition<FSPromises>
-  )[] {
+  init(): InstrumentationNodeModuleDefinition<FS>[] {
     return [
       new InstrumentationNodeModuleDefinition<FS>(
         'fs',
@@ -129,33 +125,6 @@ export default class FsInstrumentation extends InstrumentationBase<FS> {
           for (const fName of PROMISE_FUNCTIONS) {
             if (isWrapped(fs.promises[fName])) {
               this._unwrap(fs.promises, fName);
-            }
-          }
-        }
-      ),
-      new InstrumentationNodeModuleDefinition<FSPromises>(
-        'fs/promises',
-        ['*'],
-        (fsPromises: FSPromises) => {
-          this._diag.debug('Applying patch for fs/promises');
-          for (const fName of PROMISE_FUNCTIONS) {
-            if (isWrapped(fsPromises[fName])) {
-              this._unwrap(fsPromises, fName);
-            }
-            this._wrap(
-              fsPromises,
-              fName,
-              <any>this._patchPromiseFunction.bind(this, fName)
-            );
-          }
-          return fsPromises;
-        },
-        (fsPromises: FSPromises) => {
-          if (fsPromises === undefined) return;
-          this._diag.debug('Removing patch for fs/promises');
-          for (const fName of PROMISE_FUNCTIONS) {
-            if (isWrapped(fsPromises[fName])) {
-              this._unwrap(fsPromises, fName);
             }
           }
         }
